@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>제미나이 노트 복사/저장기</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* 메인 에디터 영역 */
+        .editor-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        .header-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        h2 { margin: 0; color: #333; font-size: 24px; }
+
+        /* 모달 열기 버튼 */
+        .open-modal-btn {
+            background-color: #607d8b;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .open-modal-btn:hover { background-color: #455a64; }
+
+        .input-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .input-group.flex-fill { flex: 1; }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        textarea { resize: vertical; }
+        textarea::placeholder { font-size: 13px; color: #999; font-style: italic; }
+
+        #record-conversation { height: 100px; }
+        #record-content { flex: 1; min-height: 150px; }
+
+        /* 질문 영역 동적 리스트 스타일 */
+        .questions-wrapper { display: flex; flex-direction: column; gap: 10px; }
+        .question-item { display: flex; gap: 10px; align-items: stretch; }
+        .question-item textarea { flex: 1; height: 75px; }
+        .question-actions { display: flex; flex-direction: column; gap: 5px; width: 70px; }
+        
+        .btn-q-select { 
+            flex: 1; background-color: #e0e0e0; color: #555; border: none; 
+            border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; 
+        }
+        .btn-q-select.selected { background-color: #2196F3; color: white; }
+        .btn-q-select.selected::before { content: '✔ '; }
+        
+        .btn-q-delete { 
+            background-color: #ffebee; color: #c62828; border: none; 
+            border-radius: 4px; padding: 6px; cursor: pointer; font-size: 12px; font-weight: bold; 
+        }
+        .btn-q-add { 
+            background-color: #e0e0e0; border: none; padding: 10px; border-radius: 4px; 
+            cursor: pointer; font-weight: bold; color: #333; margin-top: 5px; transition: 0.2s;
+        }
+        .btn-q-add:hover { background-color: #d5d5d5; }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-group button {
+            padding: 12px 15px; font-size: 15px; font-weight: bold;
+            cursor: pointer; color: white; border: none; border-radius: 4px;
+            flex: 1; transition: opacity 0.2s;
+        }
+        .btn-group button:hover { opacity: 0.9; }
+
+        .btn-clear { background-color: #f44336; }
+        .btn-copy { background-color: #2196F3; }
+        .btn-save { background-color: #4CAF50; }
+
+        .toast-msg {
+            display: none; padding: 12px; border-radius: 4px; margin-top: 15px;
+            text-align: center; font-weight: bold;
+        }
+        .toast-success { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
+
+        /* ================= 확장된 이북(e-book) 모달 스타일 ================= */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-container {
+            width: 95%; max-width: 1100px; height: 90vh; display: flex;
+        }
+
+        .card-page {
+            background-color: #fffcf8; flex: 1; border-radius: 10px; padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; position: relative;
+        }
+
+        .card-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            border-bottom: 2px solid #ddd; padding-bottom: 15px; margin-bottom: 20px;
+        }
+        .header-left { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        
+        .card-title-disp { font-size: 24px; font-weight: bold; color: #333; margin: 0; }
+        .card-date-disp { font-size: 14px; color: #888; }
+        
+        .btn-list {
+            background-color: #03a9f4; color: white; border: none; padding: 10px 15px;
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;
+            margin-left: 15px; white-space: nowrap; transition: background 0.2s;
+        }
+        .btn-list:hover { background-color: #0288d1; }
+
+        .card-content-area { 
+            flex: 1; display: flex; flex-direction: column; 
+            overflow-y: auto; padding-right: 10px;
+        }
+        
+        .content-text { font-size: 17px; line-height: 1.8; color: #333; white-space: pre-wrap; word-break: keep-all; }
+
+        .card-footer {
+            display: flex; justify-content: flex-end; align-items: center;
+            margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;
+        }
+        
+        .card-actions button {
+            padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;
+            font-weight: bold; color: white; margin-left: 10px; font-size: 14px;
+        }
+        .btn-edit { background-color: #ff9800; }
+        .btn-delete { background-color: #f44336; }
+        .btn-close { background-color: #607d8b; }
+
+        /* 모달 편집 모드 */
+        .edit-input { width: 100%; padding: 10px; font-size: 20px; font-weight: bold; box-sizing: border-box; }
+        .edit-textarea { width: 100%; height: 100%; min-height: 300px; padding: 20px; font-size: 17px; line-height: 1.8; box-sizing: border-box; resize: none; }
+        
+        /* 모달 내 목록(리스트) 뷰어 스타일 */
+        .modal-list-ul { list-style: none; padding: 0; margin: 0; }
+        .modal-list-li {
+            padding: 20px; border-bottom: 1px solid #eaeaea; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            transition: background-color 0.2s; border-radius: 6px;
+        }
+        .modal-list-li:hover { background-color: #f1f3f5; }
+        .modal-list-title { font-size: 18px; font-weight: bold; color: #333; }
+        .modal-list-date { font-size: 14px; color: #888; }
+        .empty-state { text-align: center; color: #777; font-size: 18px; margin-top: 80px; }
+    </style>
+</head>
+<body>
+
+    <div class="editor-container">
+        <div class="header-wrap">
+            <h2>새 노트 작성하기</h2>
+            <button class="open-modal-btn" onclick="openModal()">📖 저장된 목록 보기</button>
+        </div>
+        
+        <input type="hidden" id="record-id">
+
+        <div class="input-group">
+            <label for="record-title">📌 제목</label>
+            <input type="text" id="record-title" placeholder="어떤 내용인지 제목을 적어주세요.">
+        </div>
+
+        <div class="input-group">
+            <label for="record-conversation">🎤 1. 녹음 내용</label>
+            <textarea id="record-conversation" placeholder="녹음된 대화 내용을 붙여넣으세요..."></textarea>
+        </div>
+
+        <div class="input-group">
+            <label>❓ 2. 나의 질문</label>
+            <div id="questions-container" class="questions-wrapper">
+                <!-- 질문 창들이 동적으로 추가되는 영역 -->
+            </div>
+            <button class="btn-q-add" onclick="addQuestionBox()">➕ 질문 추가</button>
+        </div>
+
+        <div class="input-group flex-fill">
+            <label for="record-content">📝 3. 제미나이 답변 / 나의 생각</label>
+            <textarea id="record-content" placeholder="제미나이에서 복사한 답변이나 나의 생각을 자유롭게 입력하세요..."></textarea>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-clear" onclick="clearForm()">새로 쓰기</button>
+            <button class="btn-copy" onclick="copyCombinedText()">선택항목 전체 복사</button>
+            <button class="btn-save" onclick="saveRecord()">저장하기 (날짜 자동기록)</button>
+        </div>
+        
+        <div id="toast-msg" class="toast-msg toast-success"></div>
+    </div>
+
+    <!-- 확장된 이북 형태 모달 뷰어 -->
+    <div id="ebookModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="card-page" id="cardPage">
+                <!-- JS로 카드(내용 또는 리스트)가 여기에 주입됩니다 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let modalRecords = [];
+        let currentIndex = 0;
+        let isEditMode = false;
+        let isListView = true; 
+
+        // 최초 실행 시 빈 질문창 1개 생성
+        window.onload = function() {
+            addQuestionBox();
+        };
+
+        // ======== 메인 질문 박스 기능 ========
+
+        function addQuestionBox(text = '', isSelected = true) {
+            const container = document.getElementById('questions-container');
+            const item = document.createElement('div');
+            item.className = 'question-item';
+            
+            const selectedClass = isSelected ? 'selected' : '';
+            
+            item.innerHTML = `
+                <textarea class="q-text" placeholder="AI에게 물어볼 질문을 입력하세요...">${text}</textarea>
+                <div class="question-actions">
+                    <button class="btn-q-select ${selectedClass}" onclick="this.classList.toggle('selected')">선택</button>
+                    <button class="btn-q-delete" onclick="this.parentElement.parentElement.remove()">삭제</button>
+                </div>
+            `;
+            container.appendChild(item);
+        }
+
+        // ======== 메인 기능 ========
+
+        function getTodayDateString() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function saveRecord() {
+            const id = document.getElementById('record-id').value;
+            const title = document.getElementById('record-title').value.trim();
+            const conversation = document.getElementById('record-conversation').value;
+            const content = document.getElementById('record-content').value;
+
+            if (!title) {
+                alert("제목을 입력해주세요!");
+                document.getElementById('record-title').focus();
+                return;
+            }
+
+            // 질문 항목들 데이터 수집
+            const questionItems = document.querySelectorAll('.question-item');
+            const questionsArray = Array.from(questionItems).map(item => {
+                return {
+                    text: item.querySelector('.q-text').value,
+                    selected: item.querySelector('.btn-q-select').classList.contains('selected')
+                };
+            });
+
+            let records = JSON.parse(localStorage.getItem('myGeminiRecordsData')) || [];
+            
+            if (id) {
+                const index = records.findIndex(r => r.id == id);
+                if (index !== -1) {
+                    records[index] = { id, date: records[index].date, title, conversation, questions: questionsArray, content };
+                }
+            } else {
+                const newRecord = {
+                    id: Date.now().toString(),
+                    date: getTodayDateString(), 
+                    title, conversation, questions: questionsArray, content
+                };
+                records.unshift(newRecord);
+            }
+
+            localStorage.setItem('myGeminiRecordsData', JSON.stringify(records));
+            showToast("안전하게 저장되었습니다!");
+            clearForm(); 
+        }
+
+        function clearForm() {
+            document.getElementById('record-id').value = '';
+            document.getElementById('record-title').value = '';
+            document.getElementById('record-conversation').value = '';
+            document.getElementById('record-content').value = '';
+            
+            // 질문창 초기화
+            document.getElementById('questions-container').innerHTML = '';
+            addQuestionBox();
+        }
+
+        function copyCombinedText() {
+            const title = document.getElementById('record-title').value;
+            const conversation = document.getElementById('record-conversation').value;
+            const content = document.getElementById('record-content').value;
+            const dateStr = getTodayDateString();
+
+            // 선택된 질문들만 모으기
+            const questionItems = document.querySelectorAll('.question-item');
+            let selectedQuestionsText = '';
+            
+            questionItems.forEach((item) => {
+                if (item.querySelector('.btn-q-select').classList.contains('selected')) {
+                    const qText = item.querySelector('.q-text').value.trim();
+                    if (qText) {
+                        selectedQuestionsText += `${qText}\n\n`;
+                    }
+                }
+            });
+
+            let combinedText = `[제목] ${title || '제목 없음'}\n[날짜] ${dateStr}\n\n`;
+            if (conversation.trim()) combinedText += `[1. 녹음 내용]\n${conversation}\n\n`;
+            if (selectedQuestionsText.trim()) combinedText += `[2. 나의 질문]\n${selectedQuestionsText.trim()}\n\n`;
+            if (content.trim()) combinedText += `[3. 답변 및 생각]\n${content}`;
+
+            navigator.clipboard.writeText(combinedText.trim()).then(() => {
+                showToast("녹음 내용과 '선택'된 질문이 복사되었습니다!");
+            }).catch(err => {
+                alert('복사에 실패했습니다.');
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-msg');
+            toast.innerText = message;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2500);
+        }
+
+        // ======== 모달 및 뷰어 기능 ========
+
+        function openModal() {
+            modalRecords = JSON.parse(localStorage.getItem('myGeminiRecordsData')) || [];
+            isListView = true;
+            isEditMode = false;
+            document.getElementById('ebookModal').classList.add('active');
+            renderEbookPage();
+        }
+
+        function closeModal() {
+            document.getElementById('ebookModal').classList.remove('active');
+            
+            // 모달을 닫을 때, 메인화면 폼과 뷰어 데이터 동기화를 위해 현재 레코드 폼에 로드
+            if (!isListView && modalRecords[currentIndex]) {
+                loadToMainForm(modalRecords[currentIndex]);
+            }
+        }
+
+        function showModalList() {
+            isListView = true;
+            isEditMode = false;
+            renderEbookPage();
+        }
+
+        function loadRecord(index) {
+            currentIndex = index;
+            isListView = false;
+            isEditMode = false;
+            renderEbookPage();
+            
+            // 리스트에서 클릭 시 메인 에디터에도 해당 데이터를 로드해줍니다.
+            loadToMainForm(modalRecords[index]);
+        }
+
+        function loadToMainForm(record) {
+            document.getElementById('record-id').value = record.id;
+            document.getElementById('record-title').value = record.title;
+            document.getElementById('record-conversation').value = record.conversation || '';
+            document.getElementById('record-content').value = record.content || '';
+            
+            const qContainer = document.getElementById('questions-container');
+            qContainer.innerHTML = '';
+            
+            // 새로운 다중 질문 데이터 처리
+            if (Array.isArray(record.questions) && record.questions.length > 0) {
+                record.questions.forEach(q => addQuestionBox(q.text, q.selected));
+            } 
+            // 이전 버전의 단일 질문 호환성 처리
+            else if (record.question) {
+                addQuestionBox(record.question, true);
+            } 
+            // 데이터가 아예 없을 경우 빈칸
+            else {
+                addQuestionBox();
+            }
+        }
+
+        function renderEbookPage() {
+            const cardPage = document.getElementById('cardPage');
+
+            if (modalRecords.length === 0) {
+                cardPage.innerHTML = `
+                    <div class="empty-state">
+                        <p>저장된 항목이 없습니다.</p>
+                        <button class="btn-close" onclick="closeModal()" style="padding:10px 20px; border:none; border-radius:4px; color:white; cursor:pointer;">닫기</button>
+                    </div>`;
+                return;
+            }
+
+            // 1. 리스트 화면 노출
+            if (isListView) {
+                let listHTML = `
+                    <div class="card-header">
+                        <h3 class="card-title-disp">📖 저장된 목록</h3>
+                        <button class="btn-close" onclick="closeModal()" style="padding: 10px 20px;">닫기</button>
+                    </div>
+                    <div class="card-content-area" style="padding-right: 0;">
+                        <ul class="modal-list-ul">
+                `;
+                
+                modalRecords.forEach((record, index) => {
+                    listHTML += `
+                        <li class="modal-list-li" onclick="loadRecord(${index})">
+                            <span class="modal-list-title">${record.title}</span>
+                            <span class="modal-list-date">${record.date}</span>
+                        </li>
+                    `;
+                });
+
+                listHTML += `</ul></div>`;
+                cardPage.innerHTML = listHTML;
+                return;
+            }
+
+            // 2. 개별 내용 화면 노출 (읽기 또는 편집, 3번 내용만 보여줌)
+            const record = modalRecords[currentIndex];
+
+            if (isEditMode) {
+                cardPage.innerHTML = `
+                    <div class="card-header">
+                        <div class="header-left">
+                            <input type="text" id="edit-title" class="edit-input" value="${record.title}">
+                            <div class="card-date-disp">${record.date} (날짜는 수정불가)</div>
+                        </div>
+                        <button class="btn-list" onclick="showModalList()">📋 목록 보기</button>
+                    </div>
+                    <div class="card-content-area" style="padding-right: 0;">
+                        <textarea id="edit-content" class="edit-textarea" placeholder="제미나이 답변 / 나의 생각을 입력하세요...">${record.content || ''}</textarea>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-actions">
+                            <button class="btn-edit" onclick="saveEdit()" style="background-color:#4CAF50;">저장</button>
+                            <button class="btn-close" onclick="toggleEditMode()">취소</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                cardPage.innerHTML = `
+                    <div class="card-header">
+                        <div class="header-left">
+                            <h3 class="card-title-disp">${record.title}</h3>
+                            <div class="card-date-disp">${record.date}</div>
+                        </div>
+                        <button class="btn-list" onclick="showModalList()">📋 목록 보기</button>
+                    </div>
+                    <div class="card-content-area">
+                        <div class="content-text">${record.content || '<span style="color:#aaa;">3번(제미나이 답변/나의 생각) 항목에 저장된 내용이 없습니다.</span>'}</div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-actions">
+                            <button class="btn-edit" onclick="toggleEditMode()">수정</button>
+                            <button class="btn-delete" onclick="deleteInModal('${record.id}')">삭제</button>
+                            <button class="btn-close" onclick="closeModal()">닫기</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            renderEbookPage();
+        }
+
+        function saveEdit() {
+            const updatedTitle = document.getElementById('edit-title').value.trim();
+            const updatedContent = document.getElementById('edit-content').value;
+
+            if (!updatedTitle) {
+                alert("제목을 입력해주세요.");
+                return;
+            }
+
+            modalRecords[currentIndex].title = updatedTitle;
+            modalRecords[currentIndex].content = updatedContent;
+
+            localStorage.setItem('myGeminiRecordsData', JSON.stringify(modalRecords));
+            isEditMode = false;
+            renderEbookPage();
+            
+            // 모달창에서 수정한 내역이 메인 입력폼에도 즉시 반영되도록
+            loadToMainForm(modalRecords[currentIndex]);
+        }
+
+        function deleteInModal(id) {
+            if (confirm("정말로 이 페이지를 삭제하시겠습니까?")) {
+                modalRecords = modalRecords.filter(r => r.id !== id);
+                localStorage.setItem('myGeminiRecordsData', JSON.stringify(modalRecords));
+                
+                if(document.getElementById('record-id').value === id) {
+                    clearForm();
+                }
+
+                // 삭제 후에는 리스트 뷰로 돌아감
+                isListView = true;
+                renderEbookPage();
+            }
+        }
+
+        // 모달창 바깥 검은 배경 클릭 시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('ebookModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
