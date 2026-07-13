@@ -388,36 +388,38 @@ body {
             addQuestionBox();
         }
 
-        function copyCombinedText() {
-            const title = document.getElementById('record-title').value;
-            const conversation = document.getElementById('record-conversation').value;
-            const content = document.getElementById('record-content').value;
-            const dateStr = getTodayDateString();
+function copyCombinedText() {
+    const title = document.getElementById('record-title').value;
+    const conversation = document.getElementById('record-conversation').value;
+    // const content = document.getElementById('record-content').value; // 이 줄을 삭제하거나 주석 처리
+    const dateStr = getTodayDateString();
 
-            // 선택된 질문들만 모으기
-            const questionItems = document.querySelectorAll('.question-item');
-            let selectedQuestionsText = '';
-            
-            questionItems.forEach((item) => {
-                if (item.querySelector('.btn-q-select').classList.contains('selected')) {
-                    const qText = item.querySelector('.q-text').value.trim();
-                    if (qText) {
-                        selectedQuestionsText += `${qText}\n\n`;
-                    }
-                }
-            });
-
-            let combinedText = `[제목] ${title || '제목 없음'}\n[날짜] ${dateStr}\n\n`;
-            if (conversation.trim()) combinedText += `[1. 녹음 내용]\n${conversation}\n\n`;
-            if (selectedQuestionsText.trim()) combinedText += `[2. 나의 질문]\n${selectedQuestionsText.trim()}\n\n`;
-            if (content.trim()) combinedText += `[3. 답변 및 생각]\n${content}`;
-
-            navigator.clipboard.writeText(combinedText.trim()).then(() => {
-                showToast("녹음 내용과 '선택'된 질문이 복사되었습니다!");
-            }).catch(err => {
-                alert('복사에 실패했습니다.');
-            });
+    // 선택된 질문들만 모으기
+    const questionItems = document.querySelectorAll('.question-item');
+    let selectedQuestionsText = '';
+    
+    questionItems.forEach((item) => {
+        if (item.querySelector('.btn-q-select').classList.contains('selected')) {
+            const qText = item.querySelector('.q-text').value.trim();
+            if (qText) {
+                selectedQuestionsText += `${qText}\n\n`;
+            }
         }
+    });
+
+    let combinedText = `[제목] ${title || '제목 없음'}\n[날짜] ${dateStr}\n\n`;
+    if (conversation.trim()) combinedText += `[1. 녹음 내용]\n${conversation}\n\n`;
+    if (selectedQuestionsText.trim()) combinedText += `[2. 나의 질문]\n${selectedQuestionsText.trim()}\n\n`;
+    
+    // 아래 3번 항목 추가 부분을 삭제하거나 주석 처리하세요.
+    // if (content.trim()) combinedText += `[3. 답변 및 생각]\n${content}`;
+
+    navigator.clipboard.writeText(combinedText.trim()).then(() => {
+        showToast("녹음 내용과 '선택'된 질문이 복사되었습니다!");
+    }).catch(err => {
+        alert('복사에 실패했습니다.');
+    });
+}
 
         function showToast(message) {
             const toast = document.getElementById('toast-msg');
