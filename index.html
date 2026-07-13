@@ -136,19 +136,32 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    background: white; /* 뒤에 글자가 비치지 않게 배경색 지정 */
+    background: white;
     padding: 15px 30px;
     box-sizing: border-box;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1); /* 약간의 그림자 */
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
     z-index: 100;
+    
+    /* 추가 및 수정된 부분 */
+    display: flex;          /* 가로 정렬 */
+    gap: 10px;              /* 버튼 사이의 간격 (원하는 만큼 조절) */
 }
 
+.btn-group button {
+    padding: 12px 15px; 
+    font-size: 15px; 
+    font-weight: bold;
+    cursor: pointer; 
+    color: white; 
+    border: none; 
+    border-radius: 4px;
+    
+    /* 수정된 부분: 모든 버튼이 동일한 너비를 가짐 */
+    flex: 1;                
+    
+    transition: opacity 0.2s;
+}
 
-        .btn-group button {
-            padding: 12px 15px; font-size: 15px; font-weight: bold;
-            cursor: pointer; color: white; border: none; border-radius: 4px;
-            flex: 1; transition: opacity 0.2s;
-        }
         .btn-group button:hover { opacity: 0.9; }
 
         .btn-clear { background-color: #f44336; }
