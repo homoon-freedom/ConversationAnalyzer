@@ -96,21 +96,23 @@
         #record-content { flex: 1; min-height: 250px; }
 
         /* 토글 영역 스타일 */
-        .toggle-header {
-            background-color: #e9ecef;
-            padding: 12px 15px;
-            border-radius: 4px;
-            font-weight: bold;
-            color: #495057;
-            cursor: pointer;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: background-color 0.2s;
-            user-select: none;
-            flex-shrink: 0;
-        }
+.toggle-header {
+    background-color: #e9ecef;
+    padding: 12px 15px;
+    font-size: 13px; /* ✨ 이 부분을 새로 추가합니다! 숫자를 조절하여 크기를 변경할 수 있습니다. */
+    border-radius: 4px;
+    font-weight: bold;
+    color: #495057;
+    cursor: pointer;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+    user-select: none;
+    flex-shrink: 0;
+}
+
         .toggle-header:hover { background-color: #dde2e6; }
         .toggle-content {
             display: block;
@@ -254,7 +256,7 @@
         </div>
 
         <div class="toggle-header" onclick="toggleContext()">
-            <span id="toggleIcon">▼</span> 녹음 내용 및 나의 질문 (클릭하여 접기/펴기)
+            <span id="toggleIcon">▼</span> 녹음 내용 및 나의 질문(접기/펴기)
         </div>
         
         <div id="toggleContent" class="toggle-content">
