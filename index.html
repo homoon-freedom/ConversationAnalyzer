@@ -96,22 +96,22 @@
         #record-content { flex: 1; min-height: 250px; }
 
         /* 토글 영역 스타일 */
-.toggle-header {
-    background-color: #e9ecef;
-    padding: 12px 15px;
-    font-size: 13px; /* ✨ 이 부분을 새로 추가합니다! 숫자를 조절하여 크기를 변경할 수 있습니다. */
-    border-radius: 4px;
-    font-weight: bold;
-    color: #495057;
-    cursor: pointer;
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: background-color 0.2s;
-    user-select: none;
-    flex-shrink: 0;
-}
+        .toggle-header {
+            background-color: #e9ecef;
+            padding: 12px 15px;
+            font-size: 13px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #495057;
+            cursor: pointer;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+            user-select: none;
+            flex-shrink: 0;
+        }
 
         .toggle-header:hover { background-color: #dde2e6; }
         .toggle-content {
@@ -164,7 +164,6 @@
             cursor: pointer; font-weight: bold; color: white; transition: 0.2s; flex: 1;
         }
         .btn-q-load-list:hover { background-color: #7b1fa2; }
-
 
         .btn-group {
             position: fixed; bottom: 0; left: 0; width: 100%; background: white;
@@ -268,7 +267,7 @@
             <div class="input-group">
                 <label>2. 나의 질문</label>
                 <div id="questions-container" class="questions-wrapper">
-                    </div>
+                </div>
                 
                 <div class="q-control-panel">
                     <button class="btn-q-add" onclick="addQuestionBox()">➕ 질문 추가</button>
@@ -307,7 +306,7 @@
                     <button class="btn-close" onclick="closeQuestionModal()" style="padding: 8px 15px;">닫기</button>
                 </div>
                 <div class="card-content-area" id="qListContent">
-                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -317,6 +316,18 @@
         let currentIndex = 0;
         let isEditMode = false;
         let isListView = true; 
+
+        // 본문 내용 중 #, ##, ### 기호를 폰트 스타일로 변환하는 함수
+        function formatEbookContent(text) {
+            if (!text) return '';
+            return text
+                // ### 이 붙으면 폰트 크기 2단계 위(1.4em) + 볼드체
+                .replace(/^###\s*(.*)$/gm, '<span style="font-size: 1.4em; font-weight: bold;">$1</span>')
+                // ## 이 붙으면 폰트 크기 1단계 위(1.2em) + 볼드체
+                .replace(/^##\s*(.*)$/gm, '<span style="font-size: 1.2em; font-weight: bold;">$1</span>')
+                // # 이 붙으면 기본 폰트 크기 + 볼드체
+                .replace(/^#\s*(.*)$/gm, '<span style="font-weight: bold;">$1</span>');
+        }
 
         // 최초 실행 시 로컬 스토리지에 저장된 최근 질문을 불러오거나 빈 창 생성
         window.onload = function() {
@@ -688,7 +699,7 @@
                         <button class="btn-list" onclick="showModalList()">📋 목록 보기</button>
                     </div>
                     <div class="card-content-area">
-                        <div class="content-text">${record.content || '<span style="color:#aaa;">3번(제미나이 답변/나의 생각) 항목에 저장된 내용이 없습니다.</span>'}</div>
+                        <div class="content-text">${record.content ? formatEbookContent(record.content) : '<span style="color:#aaa;">3번(제미나이 답변/나의 생각) 항목에 저장된 내용이 없습니다.</span>'}</div>
                     </div>
                     <div class="card-footer">
                         <div class="card-actions">
@@ -752,3 +763,4 @@
     </script>
 </body>
 </html>
+
