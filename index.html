@@ -224,7 +224,21 @@
         }
         .btn-edit { background-color: #ff9800; }
         .btn-delete { background-color: #f44336; }
-        .btn-close { background-color: #607d8b; }
+        
+        /* ★ 닫기 버튼 색상 및 시인성 개선 */
+        .btn-close { 
+            background-color: #546e7a; 
+            color: #ffffff !important; /* 강제 흰색 적용 */
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .btn-close:hover {
+            background-color: #37474f; /* 마우스 오버 시 조금 더 어두워지게 */
+        }
+
         .edit-input { width: 100%; padding: 10px; font-size: 20px; font-weight: bold; box-sizing: border-box; }
         .edit-textarea { width: 100%; height: 100%; min-height: 300px; padding: 20px; font-size: 17px; line-height: 1.8; box-sizing: border-box; resize: none; }
         .modal-list-ul { list-style: none; padding: 0; margin: 0; }
@@ -315,11 +329,9 @@
         let isEditMode = false;
         let isListView = true; 
         
-        // 질문 세트 관리를 위한 변수 추가
         let qListEditIndex = -1; 
-        let currentActiveListId = null; // 현재 메인 화면에 띄워둔 질문 세트의 ID
+        let currentActiveListId = null; 
 
-        // 본문 내용 중 #, ##, ### 기호를 폰트 스타일로 변환하는 함수
         function formatEbookContent(text) {
             if (!text) return '';
             return text
@@ -343,8 +355,6 @@
                 icon.innerText = '▶';
             }
         }
-
-        // ================= 질문 관련 기능 =================
 
         function loadDefaultQuestions() {
             const lastQs = JSON.parse(localStorage.getItem('myGeminiLastQuestions'));
@@ -389,8 +399,6 @@
             const questionsArray = getCurrentQuestionsArray();
             localStorage.setItem('myGeminiLastQuestions', JSON.stringify(questionsArray));
         }
-
-        // --- 질문 세트 저장/불러오기(모달) 기능 ---
         
         function saveCurrentQuestionList() {
             const questionsArray = getCurrentQuestionsArray();
@@ -403,7 +411,6 @@
 
             let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
             
-            // 기존 세트를 불러와서 수정 중이었다면 덮어쓰기 기능 제공
             if (currentActiveListId) {
                 const existingIndex = qLists.findIndex(l => l.id === currentActiveListId);
                 if (existingIndex !== -1) {
@@ -411,12 +418,11 @@
                         qLists[existingIndex].questions = questionsArray;
                         localStorage.setItem('myGeminiSavedQuestionLists', JSON.stringify(qLists));
                         showToast(`'${qLists[existingIndex].name}' 세트가 업데이트 되었습니다.`);
-                        return; // 덮어쓰기 완료 후 종료
+                        return; 
                     }
                 }
             }
 
-            // 덮어쓰기를 취소했거나 새로 작성하는 경우 새 세트로 저장
             const listName = prompt("새 질문 세트의 이름을 입력하세요:", "새 질문 세트");
             if (!listName) return; 
 
@@ -426,14 +432,14 @@
                 questions: questionsArray
             };
             qLists.push(newList);
-            currentActiveListId = newList.id; // 방금 저장한 세트를 활성 상태로 갱신
+            currentActiveListId = newList.id; 
             
             localStorage.setItem('myGeminiSavedQuestionLists', JSON.stringify(qLists));
             showToast(`'${listName}' 세트가 저장되었습니다.`);
         }
 
         function openQuestionModal() {
-            qListEditIndex = -1; // 모달 열때마다 수정 모드 초기화
+            qListEditIndex = -1; 
             document.getElementById('qListModal').classList.add('active');
             renderQuestionListModal();
         }
@@ -454,7 +460,6 @@
                 return;
             }
 
-            // 질문 리스트 수정 모드 렌더링
             if (qListEditIndex > -1) {
                 const list = qLists[qListEditIndex];
                 let html = `
@@ -466,9 +471,10 @@
                         <div style="display:flex; flex-direction:column; gap:10px; max-height: 45vh; overflow-y:auto; padding-right:5px; margin-top:5px;">
                 `;
                 
+                // ★ 질문 입력창 높이 확대 (height: 110px 적용)
                 list.questions.forEach((q, i) => {
                     html += `
-                        <textarea class="edit-qlist-textarea" style="width:100%; height:60px; padding:10px; border:1px solid #ccc; border-radius:4px; resize:vertical; box-sizing:border-box;">${q.text}</textarea>
+                        <textarea class="edit-qlist-textarea" style="width:100%; height:110px; padding:12px; border:1px solid #ccc; border-radius:4px; resize:vertical; box-sizing:border-box; font-size:14px; line-height:1.5;">${q.text}</textarea>
                     `;
                 });
                 
@@ -484,7 +490,6 @@
                 return;
             }
 
-            // 기본 질문 리스트 모드 렌더링
             let html = '<ul class="modal-list-ul">';
             qLists.forEach((list, index) => {
                 html += `
@@ -504,19 +509,16 @@
             contentArea.innerHTML = html;
         }
 
-        // 특정 질문 세트를 에디터 모드로 진입
         function editQuestionSet(index) {
             qListEditIndex = index;
             renderQuestionListModal();
         }
 
-        // 에디터 모드 취소
         function cancelQuestionListEdit() {
             qListEditIndex = -1;
             renderQuestionListModal();
         }
 
-        // 모달 안에서 수정한 질문 세트 내용 저장
         function saveQuestionListEdit() {
             let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
             let list = qLists[qListEditIndex];
@@ -532,7 +534,7 @@
             list.questions.forEach((q, i) => {
                 if(textareas[i]) {
                     const newText = textareas[i].value.trim();
-                    if(newText !== '') { // 공백이 아닐때만 유지 (지우면 삭제됨)
+                    if(newText !== '') { 
                         updatedQuestions.push({ text: newText, selected: q.selected });
                     }
                 }
@@ -556,7 +558,7 @@
             const selectedList = qLists[index];
             if (!selectedList) return;
 
-            currentActiveListId = selectedList.id; // 메인화면에 불러온 리스트 ID 기록 (덮어쓰기 용도)
+            currentActiveListId = selectedList.id; 
 
             const qContainer = document.getElementById('questions-container');
             qContainer.innerHTML = ''; 
@@ -573,7 +575,6 @@
             
             let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
             
-            // 삭제한 세트가 현재 불러와진 세트라면 연결을 끊어줍니다 (덮어쓰기 방지)
             if (qLists[index].id === currentActiveListId) {
                 currentActiveListId = null; 
             }
@@ -636,7 +637,7 @@
             document.getElementById('record-conversation').value = '';
             document.getElementById('record-content').value = '';
             
-            currentActiveListId = null; // 새로 쓸 때는 활성 질문 세트 연결 끊기
+            currentActiveListId = null; 
             
             loadDefaultQuestions();
             
@@ -737,7 +738,7 @@
                 cardPage.innerHTML = `
                     <div class="empty-state">
                         <p>저장된 노트가 없습니다.</p>
-                        <button class="btn-close" onclick="closeEbookModal()" style="padding:10px 20px; border:none; border-radius:4px; color:white; cursor:pointer;">닫기</button>
+                        <button class="btn-close" onclick="closeEbookModal()" style="padding:10px 20px;">닫기</button>
                     </div>`;
                 return;
             }
