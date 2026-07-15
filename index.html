@@ -899,16 +899,16 @@
                         const file = new File([blob], "gemini_note.png", { type: "image/png" });
                         
                         // 모바일 환경 등 Web Share API 지원 시
-                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                            navigator.share({
-                                title: '제미나이 노트',
-                                text: '제가 작성한 제미나이 노트를 공유합니다.',
-                                files: [file]
-                            }).catch((error) => {
-                                console.log('공유 취소 또는 에러', error);
-                                // 에러 발생시 강제 다운로드로 전환
-                                triggerDownload(canvas);
-                            });
+// 모바일 환경 등 Web Share API 지원 시
+if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({
+        // title과 text를 지우고 이미지만 전달합니다.
+        files: [file]
+    }).catch((error) => {
+        console.log('공유 취소 또는 에러', error);
+        // 에러 발생시 강제 다운로드로 전환
+        triggerDownload(canvas);
+    });
                         } else {
                             // PC 환경 등 미지원 시 바로 다운로드
                             triggerDownload(canvas);
