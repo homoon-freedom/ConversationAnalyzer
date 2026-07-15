@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>제미나이 노트 복사/저장기</title>
+    <!-- 캡처를 위한 html2canvas 라이브러리 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Malgun Gothic', sans-serif;
@@ -224,11 +226,13 @@
         }
         .btn-edit { background-color: #ff9800; }
         .btn-delete { background-color: #f44336; }
+        .btn-share-img { background-color: #8e24aa; } /* 공유 버튼 색상 추가 */
+        .btn-share-img:hover { background-color: #7b1fa2; }
         
         /* ★ 닫기 버튼 색상 및 시인성 개선 */
         .btn-close { 
             background-color: #546e7a; 
-            color: #ffffff !important; /* 강제 흰색 적용 */
+            color: #ffffff !important;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -236,7 +240,7 @@
             transition: background-color 0.2s;
         }
         .btn-close:hover {
-            background-color: #37474f; /* 마우스 오버 시 조금 더 어두워지게 */
+            background-color: #37474f; 
         }
 
         .edit-input { width: 100%; padding: 10px; font-size: 20px; font-weight: bold; box-sizing: border-box; }
@@ -471,7 +475,6 @@
                         <div style="display:flex; flex-direction:column; gap:10px; max-height: 45vh; overflow-y:auto; padding-right:5px; margin-top:5px;">
                 `;
                 
-                // ★ 질문 입력창 높이 확대 (height: 110px 적용)
                 list.questions.forEach((q, i) => {
                     html += `
                         <textarea class="edit-qlist-textarea" style="width:100%; height:110px; padding:12px; border:1px solid #ccc; border-radius:4px; resize:vertical; box-sizing:border-box; font-size:14px; line-height:1.5;">${q.text}</textarea>
@@ -802,6 +805,7 @@
                     </div>
                     <div class="card-footer">
                         <div class="card-actions">
+                            <button class="btn-share-img" onclick="shareAsImage()">이미지로 공유</button>
                             <button class="btn-edit" onclick="toggleEditMode()">수정</button>
                             <button class="btn-delete" onclick="deleteInModal('${record.id}')">삭제</button>
                             <button class="btn-close" onclick="closeEbookModal()">닫기</button>
@@ -846,6 +850,67 @@
                 isListView = true;
                 renderEbookPage();
             }
+        }
+
+        // ================= 이미지 캡처 및 공유 로직 =================
+        function shareAsImage() {
+            const cardPage = document.getElementById('cardPage');
+            const footer = cardPage.querySelector('.card-footer');
+            const btnList = cardPage.querySelector('.btn-list');
+            const contentArea = cardPage.querySelector('.card-content-area');
+            
+            // 기존 스타일 백업
+            const origFooterDisplay = footer ? footer.style.display : '';
+            const origBtnListDisplay = btnList ? btnList.style.display : '';
+            const origOverflow = contentArea ? contentArea.style.overflowY : '';
+            const origHeight = cardPage.style.height;
+
+            // 캡처 시 불필요한 버튼 숨기고 스크롤 해제하여 전체 내용이 담기도록 설정
+            if (footer) footer.style.display = 'none';
+            if (btnList) btnList.style.display = 'none';
+            if (contentArea) contentArea.style.overflowY = 'visible';
+            cardPage.style.height = 'auto'; 
+
+            html2canvas(cardPage, {
+                scale: 2, // 고해상도 캡처
+                backgroundColor: "#fffcf8" // 카드 배경색
+            }).then(canvas => {
+                // UI 상태 원래대로 복구
+                if (footer) footer.style.display = origFooterDisplay;
+                if (btnList) btnList.style.display = origBtnListDisplay;
+                if (contentArea) contentArea.style.overflowY = origOverflow;
+                cardPage.style.height = origHeight;
+
+                canvas.toBlob(blob => {
+                    const file = new File([blob], "gemini_note.png", { type: "image/png" });
+                    
+                    // Web Share API가 지원되는 기기(주로 모바일)인 경우 공유창 띄우기
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        navigator.share({
+                            title: '제미나이 노트',
+                            text: '제가 작성한 제미나이 노트를 공유합니다.',
+                            files: [file]
+                        }).catch((error) => console.log('공유 실패 또는 취소됨', error));
+                    } else {
+                        // Web Share API 미지원 시 데스크탑처럼 강제 다운로드
+                        const imgData = canvas.toDataURL('image/png');
+                        const link = document.createElement('a');
+                        link.download = 'gemini_note.png';
+                        link.href = imgData;
+                        link.click();
+                        showToast("이미지로 다운로드되었습니다!");
+                    }
+                });
+            }).catch(err => {
+                console.error("이미지 캡처 중 오류 발생:", err);
+                alert("이미지를 생성하는 데 실패했습니다.");
+                
+                // 에러 시에도 상태 복구
+                if (footer) footer.style.display = origFooterDisplay;
+                if (btnList) btnList.style.display = origBtnListDisplay;
+                if (contentArea) contentArea.style.overflowY = origOverflow;
+                cardPage.style.height = origHeight;
+            });
         }
 
         window.onclick = function(event) {
