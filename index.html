@@ -850,77 +850,99 @@
             }
         }
 
-        // ================= ★ 전체 화면 이미지 캡처/공유 로직 (개선됨) =================
-        function shareAsImage() {
-            const originalNode = document.getElementById('cardPage');
-            
-            // 1. 현재 화면의 카드 요소를 그대로 복제합니다.
-            const clone = originalNode.cloneNode(true);
-            
-            // 2. 이미지에 불필요한 버튼들을 찾아 삭제합니다.
-            const btnList = clone.querySelector('.btn-list');
-            if (btnList) btnList.remove();
-            
-            const footer = clone.querySelector('.card-footer');
-            if (footer) footer.remove();
-            
-            // 3. 복제본의 스타일을 조작하여 전체 높이만큼 무한히 늘어나게 만듭니다.
-            clone.style.width = originalNode.offsetWidth + 'px'; // 너비 유지
-            clone.style.height = 'auto'; // 높이 제한 해제
-            clone.style.position = 'absolute';
-            clone.style.top = '0';
-            clone.style.left = '-9999px'; // 사용자 눈에 안 보이게 화면 밖으로 이동
-            
-            // 내부 스크롤 영역 제한 해제
-            const contentArea = clone.querySelector('.card-content-area');
-            if (contentArea) {
-                contentArea.style.flex = 'none';
-                contentArea.style.overflow = 'visible'; 
-                contentArea.style.height = 'auto'; 
-            }
-            
-            // DOM에 렌더링되도록 임시 부착
-            document.body.appendChild(clone);
-            showToast("전체 길이의 이미지를 생성하는 중입니다...");
-            
-            // 브라우저가 변경된 높이를 계산할 수 있도록 아주 잠시 대기
-            setTimeout(() => {
-                html2canvas(clone, {
-                    scale: 2, 
-                    backgroundColor: "#fffcf8",
-                    windowHeight: clone.scrollHeight + 100 // 잘리지 않게 충분한 윈도우 높이 부여
-                }).then(canvas => {
-                    // 캡처 완료 후 복제본 삭제
-                    document.body.removeChild(clone);
+// ================= ★ 전체 화면 이미지 캡처/공유 로직 (최종 완성본) =================
+function shareAsImage() {
+    const originalNode = document.getElementById('cardPage');
+    
+    // 1. 현재 화면의 카드 요소를 그대로 복제합니다.
+    const clone = originalNode.cloneNode(true);
+    
+    // 2. 이미지에 불필요한 버튼들을 찾아 삭제합니다.
+    const btnList = clone.querySelector('.btn-list');
+    if (btnList) btnList.remove();
+    
+    const footer = clone.querySelector('.card-footer');
+    if (footer) footer.remove();
+    
+    // 3. 복제본의 스타일을 조작하여 전체 높이만큼 무한히 늘어나게 만듭니다.
+    clone.style.width = originalNode.offsetWidth + 'px'; // 너비 유지
+    clone.style.height = 'auto'; // 높이 제한 해제
+    clone.style.position = 'absolute';
+    clone.style.top = '0';
+    clone.style.left = '-9999px'; // 사용자 눈에 안 보이게 화면 밖으로 이동
+    
+    // 내부 스크롤 영역 제한 해제
+    const contentArea = clone.querySelector('.card-content-area');
+    if (contentArea) {
+        contentArea.style.flex = 'none';
+        contentArea.style.overflow = 'visible'; 
+        contentArea.style.height = 'auto'; 
+    }
 
-                    canvas.toBlob(blob => {
-                        if (!blob) return alert("이미지 생성에 실패했습니다.");
-                        
-                        const file = new File([blob], "gemini_note.png", { type: "image/png" });
-                        
-                        // 모바일 환경 등 Web Share API 지원 시
-// 모바일 환경 등 Web Share API 지원 시
-if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({
-        // title과 text를 지우고 이미지만 전달합니다.
-        files: [file]
-    }).catch((error) => {
-        console.log('공유 취소 또는 에러', error);
-        // 에러 발생시 강제 다운로드로 전환
-        triggerDownload(canvas);
-    });
-                        } else {
-                            // PC 환경 등 미지원 시 바로 다운로드
-                            triggerDownload(canvas);
-                        }
+    // 4. 캡처본 전용 폰트 크기 확대 스타일 주입 (모바일 가독성 향상)
+    const customStyle = document.createElement('style');
+    customStyle.innerHTML = `
+        /* 본문 글씨 크기를 기존 15px에서 18px로 키우고 줄간격 확보 */
+        .content-text { font-size: 18px !important; line-height: 1.9 !important; }
+        /* 제목 글씨 크기를 기존 24px에서 28px로 확대 */
+        .card-title-disp { font-size: 28px !important; }
+        /* 날짜 글씨 크기를 기존 14px에서 16px로 확대 */
+        .card-date-disp { font-size: 16px !important; }
+    `;
+    clone.appendChild(customStyle);
+
+    // DOM에 렌더링되도록 임시 부착
+    document.body.appendChild(clone);
+    showToast("전체 길이의 이미지를 생성하는 중입니다...");
+    
+    // 브라우저가 변경된 높이를 계산할 수 있도록 아주 잠시 대기
+    setTimeout(() => {
+        html2canvas(clone, {
+            scale: 2, 
+            backgroundColor: "#fffcf8",
+            windowHeight: clone.scrollHeight + 100 // 잘리지 않게 충분한 윈도우 높이 부여
+        }).then(canvas => {
+            // 캡처 완료 후 복제본 삭제
+            document.body.removeChild(clone);
+
+            canvas.toBlob(blob => {
+                if (!blob) return alert("이미지 생성에 실패했습니다.");
+                
+                const file = new File([blob], "gemini_note.png", { type: "image/png" });
+                
+                // 모바일 환경 등 Web Share API 지원 시
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        // 제목과 텍스트를 제거하여 이미지만 깔끔하게 공유
+                        files: [file]
+                    }).catch((error) => {
+                        console.log('공유 취소 또는 에러', error);
+                        // 에러 발생시 강제 다운로드로 전환
+                        triggerDownload(canvas);
                     });
-                }).catch(err => {
-                    console.error("캡처 오류:", err);
-                    if (document.body.contains(clone)) document.body.removeChild(clone);
-                    alert("이미지 생성에 실패했습니다.");
-                });
-            }, 150);
-        }
+                } else {
+                    // PC 환경 등 미지원 시 바로 다운로드
+                    triggerDownload(canvas);
+                }
+            });
+        }).catch(err => {
+            console.error("캡처 오류:", err);
+            if (document.body.contains(clone)) document.body.removeChild(clone);
+            alert("이미지 생성에 실패했습니다.");
+        });
+    }, 150);
+}
+
+// 이미지 강제 다운로드 함수 (기존과 동일, shareAsImage 바로 아래에 유지)
+function triggerDownload(canvas) {
+    const imgData = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = 'gemini_note_full.png';
+    link.href = imgData;
+    link.click();
+    showToast("전체 글이 이미지로 다운로드되었습니다!");
+}
+
 
         // 이미지 강제 다운로드 함수
         function triggerDownload(canvas) {
