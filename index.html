@@ -882,12 +882,12 @@ function shareAsImage() {
     // 4. 캡처본 전용 폰트 크기 확대 스타일 주입 (모바일 가독성 향상)
     const customStyle = document.createElement('style');
     customStyle.innerHTML = `
-        /* 본문 글씨 크기를 기존 15px에서 18px로 키우고 줄간격 확보 */
-        .content-text { font-size: 24px !important; line-height: 1.9 !important; }
-        /* 제목 글씨 크기를 기존 24px에서 28px로 확대 */
-        .card-title-disp { font-size: 32px !important; }
-        /* 날짜 글씨 크기를 기존 14px에서 16px로 확대 */
-        .card-date-disp { font-size: 18px !important; }
+        /* 본문 글씨 크기를 기존 15px에서 30px로 키우고 줄간격 확보 */
+        .content-text { font-size: 30px !important; line-height: 1.9 !important; }
+        /* 제목 글씨 크기를 기존 24px에서 34px로 확대 */
+        .card-title-disp { font-size: 34px !important; }
+        /* 날짜 글씨 크기를 기존 14px에서 28px로 확대 */
+        .card-date-disp { font-size: 28px !important; }
     `;
     clone.appendChild(customStyle);
 
