@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>제미나이 노트 복사/저장기</title>
-    <!-- 캡처를 위한 html2canvas 라이브러리 추가 -->
+    <title>제미나이 노트 복사/저장기 (Supabase)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
             font-family: 'Malgun Gothic', sans-serif;
@@ -326,7 +326,13 @@
     </div>
 
     <script>
+        // Supabase 설정 (실제 본인의 프로젝트 URL과 Anon Key로 변경해 주세요)
+const SUPABASE_URL = 'https://ocghxynajjbkpbyljxzg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jZ2h4eW5hampia3BieWxqeHpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2OTg4MTksImV4cCI6MjA5MTI3NDgxOX0.weaiOCV0UMjsfSmEI_WU_0L4qJUOGRrtoWEwPKN26is';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         let modalRecords = [];
+        let savedQuestionLists = []; // 불러온 질문 세트들을 가질 배열
         let currentIndex = 0;
         let isEditMode = false;
         let isListView = true; 
@@ -358,6 +364,7 @@
             }
         }
 
+        // 현재 작성 중인 질문 목록의 로컬 임시저장 본 로드
         function loadDefaultQuestions() {
             const lastQs = JSON.parse(localStorage.getItem('myGeminiLastQuestions'));
             const qContainer = document.getElementById('questions-container');
@@ -397,12 +404,28 @@
             container.appendChild(item);
         }
 
+        // 로컬 임시저장
         function saveDefaultQuestions() {
             const questionsArray = getCurrentQuestionsArray();
             localStorage.setItem('myGeminiLastQuestions', JSON.stringify(questionsArray));
         }
         
-        function saveCurrentQuestionList() {
+        // ================= Supabase 질문 세트 CRUD 기능 =================
+
+        async function fetchQuestionListsFromSupabase() {
+            const { data, error } = await supabaseClient
+                .from('gemini_question_sets')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("질문 세트 패치 실패:", error);
+                return [];
+            }
+            return data || [];
+        }
+
+        async function saveCurrentQuestionList() {
             const questionsArray = getCurrentQuestionsArray();
             
             const hasContent = questionsArray.some(q => q.text.trim() !== '');
@@ -411,15 +434,24 @@
                 return;
             }
 
-            let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
+            showToast("질문 세트 동기화 중...");
+            savedQuestionLists = await fetchQuestionListsFromSupabase();
             
+            // 기존 활성화된 세트가 있다면 덮어쓰기 여부 확인
             if (currentActiveListId) {
-                const existingIndex = qLists.findIndex(l => l.id === currentActiveListId);
+                const existingIndex = savedQuestionLists.findIndex(l => l.id === currentActiveListId);
                 if (existingIndex !== -1) {
-                    if (confirm(`'${qLists[existingIndex].name}' 세트에 덮어쓰시겠습니까?\n(취소를 누르면 새 이름으로 저장할 수 있습니다)`)) {
-                        qLists[existingIndex].questions = questionsArray;
-                        localStorage.setItem('myGeminiSavedQuestionLists', JSON.stringify(qLists));
-                        showToast(`'${qLists[existingIndex].name}' 세트가 업데이트 되었습니다.`);
+                    if (confirm(`'${savedQuestionLists[existingIndex].name}' 세트에 덮어쓰시겠습니까?\n(취소를 누르면 새 이름으로 저장할 수 있습니다)`)) {
+                        const { error } = await supabaseClient
+                            .from('gemini_question_sets')
+                            .update({ questions: questionsArray })
+                            .eq('id', currentActiveListId);
+
+                        if (error) {
+                            alert("업데이트 오류: " + error.message);
+                            return;
+                        }
+                        showToast(`'${savedQuestionLists[existingIndex].name}' 세트가 업데이트 되었습니다.`);
                         return; 
                     }
                 }
@@ -433,16 +465,25 @@
                 name: listName,
                 questions: questionsArray
             };
-            qLists.push(newList);
+
+            const { error } = await supabaseClient
+                .from('gemini_question_sets')
+                .insert([newList]);
+
+            if (error) {
+                alert("저장 오류: " + error.message);
+                return;
+            }
+
             currentActiveListId = newList.id; 
-            
-            localStorage.setItem('myGeminiSavedQuestionLists', JSON.stringify(qLists));
             showToast(`'${listName}' 세트가 저장되었습니다.`);
         }
 
-        function openQuestionModal() {
+        async function openQuestionModal() {
             qListEditIndex = -1; 
             document.getElementById('qListModal').classList.add('active');
+            showToast("불러오는 중...");
+            savedQuestionLists = await fetchQuestionListsFromSupabase();
             renderQuestionListModal();
         }
 
@@ -452,9 +493,8 @@
 
         function renderQuestionListModal() {
             const contentArea = document.getElementById('qListContent');
-            let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
 
-            if (qLists.length === 0) {
+            if (savedQuestionLists.length === 0) {
                 contentArea.innerHTML = `
                     <div class="empty-state">
                         <p>저장된 질문 세트가 없습니다.</p>
@@ -463,7 +503,7 @@
             }
 
             if (qListEditIndex > -1) {
-                const list = qLists[qListEditIndex];
+                const list = savedQuestionLists[qListEditIndex];
                 let html = `
                     <div style="margin-bottom: 10px;">
                         <label style="font-size:14px; color:#555; font-weight:bold;">세트 이름</label>
@@ -492,7 +532,7 @@
             }
 
             let html = '<ul class="modal-list-ul">';
-            qLists.forEach((list, index) => {
+            savedQuestionLists.forEach((list, index) => {
                 html += `
                     <li class="modal-list-li" style="display:flex; align-items:center;">
                         <div style="flex:1; cursor:pointer;" onclick="loadQuestionSet(${index})">
@@ -520,9 +560,8 @@
             renderQuestionListModal();
         }
 
-        function saveQuestionListEdit() {
-            let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
-            let list = qLists[qListEditIndex];
+        async function saveQuestionListEdit() {
+            let list = savedQuestionLists[qListEditIndex];
             
             let newName = document.getElementById('edit-qlist-name').value.trim();
             if(!newName) { alert("세트 이름을 입력하세요."); return; }
@@ -547,7 +586,17 @@
             }
 
             list.questions = updatedQuestions;
-            localStorage.setItem('myGeminiSavedQuestionLists', JSON.stringify(qLists));
+
+            showToast("수정 사항을 클라우드에 반영 중...");
+            const { error } = await supabaseClient
+                .from('gemini_question_sets')
+                .update({ name: list.name, questions: list.questions })
+                .eq('id', list.id);
+
+            if (error) {
+                alert("수정 실패: " + error.message);
+                return;
+            }
             
             qListEditIndex = -1;
             renderQuestionListModal();
@@ -555,8 +604,7 @@
         }
 
         function loadQuestionSet(index) {
-            let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
-            const selectedList = qLists[index];
+            const selectedList = savedQuestionLists[index];
             if (!selectedList) return;
 
             currentActiveListId = selectedList.id; 
@@ -571,22 +619,32 @@
             showToast(`'${selectedList.name}' 세트를 불러왔습니다.`);
         }
 
-        function deleteQuestionSet(index) {
+        async function deleteQuestionSet(index) {
             if (!confirm("이 질문 세트를 완전히 삭제하시겠습니까?")) return;
             
-            let qLists = JSON.parse(localStorage.getItem('myGeminiSavedQuestionLists')) || [];
+            const targetId = savedQuestionLists[index].id;
+            showToast("삭제 중...");
             
-            if (qLists[index].id === currentActiveListId) {
+            const { error } = await supabaseClient
+                .from('gemini_question_sets')
+                .delete()
+                .eq('id', targetId);
+
+            if (error) {
+                alert("삭제 오류: " + error.message);
+                return;
+            }
+
+            if (targetId === currentActiveListId) {
                 currentActiveListId = null; 
             }
 
-            qLists.splice(index, 1);
-            localStorage.setItem('myGeminiSavedQuestionLists', JSON.stringify(qLists));
-            
+            savedQuestionLists.splice(index, 1);
             renderQuestionListModal(); 
+            showToast("질문 세트가 삭제되었습니다.");
         }
 
-        // ================= 메인 기록(노트) 기능 =================
+        // ================= Supabase 메인 기록(노트) 기능 =================
 
         function getTodayDateString() {
             const now = new Date();
@@ -596,7 +654,20 @@
             return `${y}-${m}-${d}`;
         }
 
-        function saveRecord() {
+        async function fetchRecordsFromSupabase() {
+            const { data, error } = await supabaseClient
+                .from('gemini_records')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error("노트 데이터 패치 오류:", error);
+                return [];
+            }
+            return data || [];
+        }
+
+        async function saveRecord() {
             const id = document.getElementById('record-id').value;
             const title = document.getElementById('record-title').value.trim();
             const conversation = document.getElementById('record-conversation').value;
@@ -609,25 +680,28 @@
             }
 
             const questionsArray = getCurrentQuestionsArray();
-            localStorage.setItem('myGeminiLastQuestions', JSON.stringify(questionsArray));
+            saveDefaultQuestions();
 
-            let records = JSON.parse(localStorage.getItem('myGeminiRecordsData')) || [];
-            
-            if (id) {
-                const index = records.findIndex(r => r.id == id);
-                if (index !== -1) {
-                    records[index] = { id, date: records[index].date, title, conversation, questions: questionsArray, content };
-                }
-            } else {
-                const newRecord = {
-                    id: Date.now().toString(),
-                    date: getTodayDateString(), 
-                    title, conversation, questions: questionsArray, content
-                };
-                records.unshift(newRecord);
+            const recordData = {
+                id: id || Date.now().toString(),
+                date: getTodayDateString(), 
+                title: title, 
+                conversation: conversation, 
+                questions: questionsArray, 
+                content: content
+            };
+
+            showToast("데이터 클라우드 전송 중...");
+
+            const { error } = await supabaseClient
+                .from('gemini_records')
+                .upsert([recordData]);
+
+            if (error) {
+                alert("저장 실패: " + error.message);
+                return;
             }
 
-            localStorage.setItem('myGeminiRecordsData', JSON.stringify(records));
             showToast("안전하게 저장되었습니다!");
             clearForm(); 
         }
@@ -685,8 +759,9 @@
 
         // ================= 기존 노트 목록 모달 기능 =================
 
-        function openEbookModal() {
-            modalRecords = JSON.parse(localStorage.getItem('myGeminiRecordsData')) || [];
+        async function openEbookModal() {
+            showToast("노트 목록을 불러오는 중...");
+            modalRecords = await fetchRecordsFromSupabase();
             isListView = true;
             isEditMode = false;
             document.getElementById('ebookModal').classList.add('active');
@@ -725,7 +800,7 @@
             
             if (Array.isArray(record.questions) && record.questions.length > 0) {
                 record.questions.forEach(q => addQuestionBox(q.text, q.selected));
-            } else if (record.question) {
+            } else if (record.question) { // 마이그레이션 호환
                 addQuestionBox(record.question, true);
             } else {
                 addQuestionBox();
@@ -818,7 +893,7 @@
             renderEbookPage();
         }
 
-        function saveEdit() {
+        async function saveEdit() {
             const updatedTitle = document.getElementById('edit-title').value.trim();
             const updatedContent = document.getElementById('edit-content').value;
 
@@ -827,19 +902,43 @@
                 return;
             }
 
+            const currentRecord = modalRecords[currentIndex];
+
+            showToast("수정 내용 전송 중...");
+            const { error } = await supabaseClient
+                .from('gemini_records')
+                .update({ title: updatedTitle, content: updatedContent })
+                .eq('id', currentRecord.id);
+
+            if (error) {
+                alert("수정 실패: " + error.message);
+                return;
+            }
+
             modalRecords[currentIndex].title = updatedTitle;
             modalRecords[currentIndex].content = updatedContent;
 
-            localStorage.setItem('myGeminiRecordsData', JSON.stringify(modalRecords));
             isEditMode = false;
             renderEbookPage();
             loadToMainForm(modalRecords[currentIndex]);
+            showToast("노트가 수정되었습니다.");
         }
 
-        function deleteInModal(id) {
+        async function deleteInModal(id) {
             if (confirm("정말로 이 노트를 삭제하시겠습니까?")) {
+                showToast("삭제 반영 중...");
+                
+                const { error } = await supabaseClient
+                    .from('gemini_records')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    alert("삭제 실패: " + error.message);
+                    return;
+                }
+
                 modalRecords = modalRecords.filter(r => r.id !== id);
-                localStorage.setItem('myGeminiRecordsData', JSON.stringify(modalRecords));
                 
                 if(document.getElementById('record-id').value === id) {
                     clearForm();
@@ -847,102 +946,87 @@
 
                 isListView = true;
                 renderEbookPage();
+                showToast("삭제 완료되었습니다.");
             }
         }
 
-// ================= ★ 전체 화면 이미지 캡처/공유 로직 (최종 완성본) =================
-function shareAsImage() {
-    const originalNode = document.getElementById('cardPage');
-    
-    // 1. 현재 화면의 카드 요소를 그대로 복제합니다.
-    const clone = originalNode.cloneNode(true);
-    
-    // 2. 이미지에 불필요한 버튼들을 찾아 삭제합니다.
-    const btnList = clone.querySelector('.btn-list');
-    if (btnList) btnList.remove();
-    
-    const footer = clone.querySelector('.card-footer');
-    if (footer) footer.remove();
-    
-    // 3. 복제본의 스타일을 조작하여 전체 높이만큼 무한히 늘어나게 만듭니다.
-    clone.style.width = originalNode.offsetWidth + 'px'; // 너비 유지
-    clone.style.height = 'auto'; // 높이 제한 해제
-    clone.style.position = 'absolute';
-    clone.style.top = '0';
-    clone.style.left = '-9999px'; // 사용자 눈에 안 보이게 화면 밖으로 이동
-    
-    // 내부 스크롤 영역 제한 해제
-    const contentArea = clone.querySelector('.card-content-area');
-    if (contentArea) {
-        contentArea.style.flex = 'none';
-        contentArea.style.overflow = 'visible'; 
-        contentArea.style.height = 'auto'; 
-    }
+        // ================= 전체 화면 이미지 캡처/공유 로직 =================
+        function shareAsImage() {
+            const originalNode = document.getElementById('cardPage');
+            
+            // 1. 현재 화면의 카드 요소를 그대로 복제합니다.
+            const clone = originalNode.cloneNode(true);
+            
+            // 2. 이미지에 불필요한 버튼들을 찾아 삭제합니다.
+            const btnList = clone.querySelector('.btn-list');
+            if (btnList) btnList.remove();
+            
+            const footer = clone.querySelector('.card-footer');
+            if (footer) footer.remove();
+            
+            // 3. 복제본의 스타일을 조작하여 전체 높이만큼 무한히 늘어나게 만듭니다.
+            clone.style.width = originalNode.offsetWidth + 'px'; // 너비 유지
+            clone.style.height = 'auto'; // 높이 제한 해제
+            clone.style.position = 'absolute';
+            clone.style.top = '0';
+            clone.style.left = '-9999px'; // 사용자 눈에 안 보이게 화면 밖으로 이동
+            
+            // 내부 스크롤 영역 제한 해제
+            const contentArea = clone.querySelector('.card-content-area');
+            if (contentArea) {
+                contentArea.style.flex = 'none';
+                contentArea.style.overflow = 'visible'; 
+                contentArea.style.height = 'auto'; 
+            }
 
-    // 4. 캡처본 전용 폰트 크기 확대 스타일 주입 (모바일 가독성 향상)
-    const customStyle = document.createElement('style');
-    customStyle.innerHTML = `
-        /* 본문 글씨 크기를 기존 15px에서 30px로 키우고 줄간격 확보 */
-        .content-text { font-size: 30px !important; line-height: 1.9 !important; }
-        /* 제목 글씨 크기를 기존 24px에서 34px로 확대 */
-        .card-title-disp { font-size: 34px !important; }
-        /* 날짜 글씨 크기를 기존 14px에서 28px로 확대 */
-        .card-date-disp { font-size: 28px !important; }
-    `;
-    clone.appendChild(customStyle);
+            // 4. 캡처본 전용 폰트 크기 확대 스타일 주입 (모바일 가독성 향상)
+            const customStyle = document.createElement('style');
+            customStyle.innerHTML = `
+                .content-text { font-size: 30px !important; line-height: 1.9 !important; }
+                .card-title-disp { font-size: 34px !important; }
+                .card-date-disp { font-size: 28px !important; }
+            `;
+            clone.appendChild(customStyle);
 
-    // DOM에 렌더링되도록 임시 부착
-    document.body.appendChild(clone);
-    showToast("전체 길이의 이미지를 생성하는 중입니다...");
-    
-    // 브라우저가 변경된 높이를 계산할 수 있도록 아주 잠시 대기
-    setTimeout(() => {
-        html2canvas(clone, {
-            scale: 2, 
-            backgroundColor: "#fffcf8",
-            windowHeight: clone.scrollHeight + 100 // 잘리지 않게 충분한 윈도우 높이 부여
-        }).then(canvas => {
-            // 캡처 완료 후 복제본 삭제
-            document.body.removeChild(clone);
+            // DOM에 렌더링되도록 임시 부착
+            document.body.appendChild(clone);
+            showToast("전체 길이의 이미지를 생성하는 중입니다...");
+            
+            // 브라우저가 변경된 높이를 계산할 수 있도록 대기
+            setTimeout(() => {
+                html2canvas(clone, {
+                    scale: 2, 
+                    backgroundColor: "#fffcf8",
+                    windowHeight: clone.scrollHeight + 100 // 잘리지 않게 충분한 윈도우 높이 부여
+                }).then(canvas => {
+                    // 캡처 완료 후 복제본 삭제
+                    document.body.removeChild(clone);
 
-            canvas.toBlob(blob => {
-                if (!blob) return alert("이미지 생성에 실패했습니다.");
-                
-                const file = new File([blob], "gemini_note.png", { type: "image/png" });
-                
-                // 모바일 환경 등 Web Share API 지원 시
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        // 제목과 텍스트를 제거하여 이미지만 깔끔하게 공유
-                        files: [file]
-                    }).catch((error) => {
-                        console.log('공유 취소 또는 에러', error);
-                        // 에러 발생시 강제 다운로드로 전환
-                        triggerDownload(canvas);
+                    canvas.toBlob(blob => {
+                        if (!blob) return alert("이미지 생성에 실패했습니다.");
+                        
+                        const file = new File([blob], "gemini_note.png", { type: "image/png" });
+                        
+                        // 모바일 환경 등 Web Share API 지원 시
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            navigator.share({
+                                files: [file]
+                            }).catch((error) => {
+                                console.log('공유 취소 또는 에러', error);
+                                triggerDownload(canvas);
+                            });
+                        } else {
+                            // PC 환경 등 미지원 시 바로 다운로드
+                            triggerDownload(canvas);
+                        }
                     });
-                } else {
-                    // PC 환경 등 미지원 시 바로 다운로드
-                    triggerDownload(canvas);
-                }
-            });
-        }).catch(err => {
-            console.error("캡처 오류:", err);
-            if (document.body.contains(clone)) document.body.removeChild(clone);
-            alert("이미지 생성에 실패했습니다.");
-        });
-    }, 150);
-}
-
-// 이미지 강제 다운로드 함수 (기존과 동일, shareAsImage 바로 아래에 유지)
-function triggerDownload(canvas) {
-    const imgData = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = 'gemini_note_full.png';
-    link.href = imgData;
-    link.click();
-    showToast("전체 글이 이미지로 다운로드되었습니다!");
-}
-
+                }).catch(err => {
+                    console.error("캡처 오류:", err);
+                    if (document.body.contains(clone)) document.body.removeChild(clone);
+                    alert("이미지 생성에 실패했습니다.");
+                });
+            }, 150);
+        }
 
         // 이미지 강제 다운로드 함수
         function triggerDownload(canvas) {
