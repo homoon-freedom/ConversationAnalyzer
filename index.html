@@ -345,7 +345,9 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             return text
                 .replace(/^###\s*(.*)$/gm, '<span style="font-size: 1.4em; font-weight: bold;">$1</span>')
                 .replace(/^##\s*(.*)$/gm, '<span style="font-size: 1.2em; font-weight: bold;">$1</span>')
-                .replace(/^#\s*(.*)$/gm, '<span style="font-weight: bold;">$1</span>');
+                .replace(/^#\s*(.*)$/gm, '<span style="font-weight: bold;">$1</span>')
+                // 아래 줄이 새롭게 추가된 정규식입니다.
+                .replace(/\*\*(.*?)\*\*/g, '<span style="color: #2196F3; font-weight: bold;">$1</span>');
         }
 
         window.onload = function() {
